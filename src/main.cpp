@@ -4,10 +4,13 @@
   Using RadioHead RFM69 library
 */
 
+#define DEBUGLEVEL 0
+
 #include <SPI.h>
 #include <RH_RF69.h>
 #include <RHReliableDatagram.h>
 
+#include "debug.h"
 #include "status.h"
 #include "utils.h"
 #include "controls.h"
@@ -36,6 +39,7 @@ unsigned long previousMillis = 0;     // will store last time interval called
 unsigned long currentMillis;
 const long interval = 4000;           // milliseconds
 char status[20];
+char charBuf[100]; // for sprintf
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
@@ -46,7 +50,7 @@ void setup() {
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
 
-  Serial.println("Feather RFM69HCW Receiver");
+  debuglnD("Feather RFM69HCW Receiver");
 
   // Hard Reset the RFM module
   digitalWrite(RFM69_RST, HIGH);
@@ -56,15 +60,15 @@ void setup() {
   
   // Initialize radio
   if (!rf69_manager.init()) {
-    Serial.println("RFM69 radio init failed");
+    debuglnD("RFM69 radio init failed");
     strcpy(status, "Radio failed");
     statusError();
     while (1);
   }
-  Serial.println("RFM69 radio init OK!");
+  debuglnD("RFM69 radio init OK!");
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
   if (!rf69.setFrequency(RF69_FREQ)) {
-    Serial.println("setFrequency failed");
+    debuglnD("setFrequency failed");
     strcpy(status, "Freq failed");
     statusError();
   }
@@ -72,20 +76,10 @@ void setup() {
   rf69.setTxPower(20, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
   rf69.setEncryptionKey(ENCRYPTION_KEY);
 
-  Serial.print("Listening at "); Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
+  sprintf(charBuf, "Listening on RFM69 readio @ %.1f Mhz", RF69_FREQ);
+  debuglnD(charBuf);
 
   initOled();
-}
-
-void Blink(byte PIN, byte DELAY_MS, byte loops)
-{
-  for (byte i=0; i<loops; i++)
-  {
-    digitalWrite(PIN,HIGH);
-    delay(DELAY_MS);
-    digitalWrite(PIN,LOW);
-    delay(DELAY_MS);
-  }
 }
 
 float getBatVoltage() {
@@ -102,8 +96,8 @@ void resetInterval() {
 }
 
 void pingRadio() {
-  Serial.print("Ping node ");
-  Serial.print(TRANSMITTER);
+  debugD("Ping node ");
+  debugD(TRANSMITTER);
   trafficOn();
   char radiopacket[8] = "ping";
 
@@ -113,17 +107,17 @@ void pingRadio() {
     uint8_t from;   
     if (rf69_manager.recvfromAckTimeout(buf, &len, 2000, &from)) {
       buf[len] = 0; // zero out remaining string
-      Serial.print(" - ");
-      Serial.println((char*)buf);
+      debugD(" - ");
+      debuglnD((char*)buf);
       strcpy(status, "Ping:Ok");     
       statusOk();
     } else {
-      Serial.println(" - No reply, is anyone listening?");
+      debuglnD(" - No reply, is anyone listening?");
       strcpy(status, "Ping:Err");      
       statusError();
     }
   } else {
-    Serial.println(" - Sending failed (no ack)");
+    debuglnD(" - Sending failed (no ack)");
     strcpy(status, "Ping:Ack");   
     statusError();
   }
@@ -151,20 +145,15 @@ void loop() {
       
       buf[len] = 0; // zero out remaining string
       
-      Serial.print("Got packet from #"); Serial.print(from);
-      Serial.print(" [RSSI :");
-      Serial.print(rf69.lastRssi());
-      Serial.print("] (");
-      Serial.print(len);
-      Serial.print(" bytes) : ");
-      // Serial.print((char*)buf);
+      sprintf(charBuf, "Got packet from #%i [RSSI : %i] (%i) bytes", from, rf69.lastRssi(), len);
+      debuglnD(charBuf);
 
       if (len != sizeof(Packet_Packed)) {
         Serial.println("Invalid packet received, not matching Packet_Packed struct!");
         for (byte i = 0; i < len; i++) {
-          Serial.print((char)buf[i]);
+          debugD((char)buf[i]);
         }
-        Serial.println("*");
+        debuglnD("*");
         strcpy(status, "Data:Err");
         statusError();
       }  
@@ -180,7 +169,7 @@ void loop() {
       
       // Send a reply back to the originator client
       if (!rf69_manager.sendtoWait(data, sizeof(data), from)) {
-        Serial.println("Sending failed (no ack)");
+        debuglnD("Sending failed (no ack)");
         strcpy(status, "Data:Ack");
         statusError();
       }
