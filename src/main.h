@@ -1,10 +1,20 @@
-#include <Arduino.h>
+#ifndef RADIO_DATA_H
+#define RADIO_DATA_H
 
 #define NETWORKID     100
-//#define FREQUENCY     RF69_915MHZ
 #define RF69_FREQ     915.0
-#define ENCRYPTKEY    "cyberwardrobot00"
 #define IS_RFM69HCW   true
+
+/* for Feather radio */
+#define RFM69_CS      10
+#define RFM69_INT     6
+#define RFM69_RST     11
+
+// The encryption key has to be the same as the one in the server
+uint8_t ENCRYPTION_KEY[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+                  
+#define SERIAL_BAUD   115200
 
 enum Controls {
   redButton,
@@ -13,30 +23,4 @@ enum Controls {
   blueButton
 };
 
-typedef struct {
-  int    joy_x;
-  int    joy_y;
-  bool   joy_button;
-  bool   green_button;
-  bool   blue_button;
-} Packet;
-
-typedef struct {
-  int joy_x;
-  int joy_y;
-  uint8_t buttons;
-} Packet_Packed;
-
-#define BB_BUTTON_JOY     1
-#define BB_BUTTON_GREEN   2
-#define BB_BUTTON_BLUE    4
-
-//************************************************************************
-//****** Real Bit Level Boolean Utilisation Macro Definitions  ***********
-//****** Created by Trevor D.BEYDAG 09 May 2016                ***********
-//****** http://lab.dejaworks.com                              ***********
-//****** Please keep credits intact when using and/or reproducing ********
-//************************************************************************
-#define BB_TRUE(bp,bb)    bp |= bb
-#define BB_FALSE(bp,bb)   bp &= ~(bb)
-#define BB_READ(bp,bb)    bool(bp & bb)
+#endif
