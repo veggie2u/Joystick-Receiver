@@ -26,12 +26,12 @@ void statusStart() {
 }
 
 void statusOk() {
-  pixel.setPixelColor(0, pixel.Color(150, 0, 0));
+  pixel.setPixelColor(0, pixel.Color(0, 150, 0));
   pixel.show();
 }
 
 void statusError() {
-  pixel.setPixelColor(0, pixel.Color(0, 150, 0));
+  pixel.setPixelColor(0, pixel.Color(150, 0, 0));
   pixel.show();
 }
 

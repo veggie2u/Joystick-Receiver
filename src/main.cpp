@@ -11,6 +11,7 @@
 #include "status.h"
 #include "utils.h"
 #include "controls.h"
+#include "data.h"
 #include "screen.h"
 #include "main.h"
 
@@ -27,9 +28,6 @@ int16_t packetnum = 0;  // packet counter, we increment per xmission
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 // Class to manage message delivery and receipt, using the driver declared above
 RHReliableDatagram rf69_manager(rf69, NODEID);
-
-// Packet theData;            // unpacked data
-// Packet_Packed packedData;  // actual data we recieve
 
 uint8_t data[] = "ok"; // for ACK message
 uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];     // read buffer
@@ -174,7 +172,7 @@ void loop() {
       {
         setPackedData(*(Packet_Packed*)buf);
         unpackData();
-        printJoystick();
+        printJoystick(getData());
         printToOled(status, getBatVoltage(), rf69.lastRssi(), getData());
         strcpy(status, "Data:Ok");         
         statusOk();
