@@ -1,39 +1,42 @@
 #include <Arduino.h>
 
 /*
-  Using RadioHead RFM69 library
+  Radio Receiver. Listens for joystick/buttons.
+  Pings receiver to make sure it is still around.
 */
 
-#define DEBUGLEVEL 0
+#define DEBUGLEVEL 4
 
 #include <SPI.h>
-#include <RH_RF69.h>
-#include <RHReliableDatagram.h>
-
-#include "debug.h"
-#include "status.h"
-#include "utils.h"
-#include "controls.h"
-#include "data.h"
-#include "screen.h"
 #include "main.h"
+#if CWW_IS_LORA == true
+#include <RH_RF95.h>
+const int MAX_MESSAGE_LEN = RH_RF95_MAX_MESSAGE_LEN;
+RH_RF95 radio(RADIO_CS, RADIO_INT);
+#else
+#include <RH_RF69.h>
+const int MAX_MESSAGE_LEN = RH_RF69_MAX_MESSAGE_LEN;
+RH_RF69 radio(RADIO_CS, RADIO_INT);
+#endif
+#include <RHReliableDatagram.h>
+#include <utils.h>
+#include <debug.h>
+#include <status.h>
+#include <controls.h>
+#include <screen.h>
 
 #define NODEID        1  
 #define TRANSMITTER   2
 
-#define DEBUG         true
-#define OLED          true
 #define VBAT_PIN      A6
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 
-// Singleton instance of the radio driver
-RH_RF69 rf69(RFM69_CS, RFM69_INT);
 // Class to manage message delivery and receipt, using the driver declared above
-RHReliableDatagram rf69_manager(rf69, NODEID);
+RHReliableDatagram manager(radio, NODEID);
 
 uint8_t data[] = "ok"; // for ACK message
-uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];     // read buffer
+uint8_t buf[MAX_MESSAGE_LEN];     // read buffer
 
 unsigned long previousMillis = 0;     // will store last time interval called
 unsigned long currentMillis;
@@ -47,19 +50,29 @@ void setup() {
 
   // ensure start state
   pinMode(LED, OUTPUT);     
-  pinMode(RFM69_RST, OUTPUT);
-  digitalWrite(RFM69_RST, LOW);
+  pinMode(RADIO_RST, OUTPUT);
 
   debuglnD("Feather RFM69HCW Receiver");
 
-  // Hard Reset the RFM module
-  digitalWrite(RFM69_RST, HIGH);
+  // Hard Reset the radio module
+  #if CWW_LORA_RADIO == true
+  digitalWrite(RADIO_RST, HIGH);
   delay(10);
-  digitalWrite(RFM69_RST, LOW);
+  digitalWrite(RADIO_RST, LOW);
   delay(10);
+  digitalWrite(RADIO_RST, HIGH);
+  delay(10);
+  #else
+  digitalWrite(RADIO_RST, LOW);
+  delay(10);
+  digitalWrite(RADIO_RST, HIGH);
+  delay(10);
+  digitalWrite(RADIO_RST, LOW);
+  delay(10);
+  #endif
   
   // Initialize radio
-  if (!rf69_manager.init()) {
+  if (!manager.init()) {
     debuglnD("RFM69 radio init failed");
     strcpy(status, "Radio failed");
     statusError();
@@ -67,16 +80,19 @@ void setup() {
   }
   debuglnD("RFM69 radio init OK!");
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
-  if (!rf69.setFrequency(RF69_FREQ)) {
+  if (!radio.setFrequency(CWW_RADIO_FREQ)) {
     debuglnD("setFrequency failed");
     strcpy(status, "Freq failed");
     statusError();
   }
 
-  rf69.setTxPower(20, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
-  rf69.setEncryptionKey(ENCRYPTION_KEY);
+  radio.setTxPower(CWW_RADIO_POWER, CWW_IS_RFM69HCW);  // range from 14-20 for power, 2nd arg must be true for 69HCW
+  
+  #if CWW_IS_LORA_RADIO == false
+  radio.setEncryptionKey(ENCRYPTION_KEY);
+  #endif
 
-  sprintf(charBuf, "Listening on RFM69 readio @ %.1f Mhz", RF69_FREQ);
+  sprintf(charBuf, "Listening on RFM69 readio @ %.1f Mhz", CWW_RADIO_FREQ);
   debuglnD(charBuf);
 
   initOled();
@@ -101,11 +117,11 @@ void pingRadio() {
   trafficOn();
   char radiopacket[8] = "ping";
 
-  if (rf69_manager.sendtoWait((uint8_t *)radiopacket, strlen(radiopacket), TRANSMITTER)) {
+  if (manager.sendtoWait((uint8_t *)radiopacket, strlen(radiopacket), TRANSMITTER)) {
     // Now wait for a reply from the server
     uint8_t len = sizeof(buf);
     uint8_t from;   
-    if (rf69_manager.recvfromAckTimeout(buf, &len, 2000, &from)) {
+    if (manager.recvfromAckTimeout(buf, &len, 2000, &from)) {
       buf[len] = 0; // zero out remaining string
       debugD(" - ");
       debuglnD((char*)buf);
@@ -130,22 +146,22 @@ void checkPingInterval() {
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
     pingRadio();
-    printToOled(status, getBatVoltage(), rf69.lastRssi(), getData());
+    printToOled(status, getBatVoltage(), radio.lastRssi(), getData());
   }
 }
 
 void loop() {
   //check if something was received (could be an interrupt from the radio)
-  if (rf69_manager.available())
+  if (manager.available())
   {
     uint8_t len = sizeof(buf);
     uint8_t from;
-    if (rf69_manager.recvfromAck(buf, &len, &from)) {
+    if (manager.recvfromAck(buf, &len, &from)) {
       trafficOn();      
       
       buf[len] = 0; // zero out remaining string
       
-      sprintf(charBuf, "Got packet from #%i [RSSI : %i] (%i) bytes", from, rf69.lastRssi(), len);
+      sprintf(charBuf, "Got packet from #%i [RSSI : %i] (%i) bytes", from, radio.lastRssi(), len);
       debuglnD(charBuf);
 
       if (len != sizeof(Packet_Packed)) {
@@ -162,13 +178,13 @@ void loop() {
         setPackedData(*(Packet_Packed*)buf);
         unpackData();
         printJoystick(getData());
-        printToOled(status, getBatVoltage(), rf69.lastRssi(), getData());
+        printToOled(status, getBatVoltage(), radio.lastRssi(), getData());
         strcpy(status, "Data:Ok");         
         statusOk();
       }
       
       // Send a reply back to the originator client
-      if (!rf69_manager.sendtoWait(data, sizeof(data), from)) {
+      if (!manager.sendtoWait(data, sizeof(data), from)) {
         debuglnD("Sending failed (no ack)");
         strcpy(status, "Data:Ack");
         statusError();
