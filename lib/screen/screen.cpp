@@ -9,16 +9,15 @@
 
 Adafruit_SSD1306 display = Adafruit_SSD1306();
 
-void initOled() {
+void initOled(const char radioType[]) {
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x32)
     display.setTextSize(1);
     display.setTextColor(WHITE);
-    Serial.println("OLED begun");
     display.display(); // start up picture
     delay(1000);
     display.clearDisplay();
     display.setCursor(0,0);
-    display.print("Reciever RFM69 start");
+    display.print("Reciever "); display.print(radioType); display.print(" start");
     display.display();
 }
 
@@ -43,5 +42,14 @@ void printToOled(char* status, float batVoltage, int16_t rssi, Packet theData) {
     display.print(theData.green_button);
     display.print(" ");
     display.print(theData.blue_button);
+    display.display();
+}
+
+void printErrorOled(char* status) {
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.print("Reciever Error:");
+    display.setCursor(0,16);
+    display.print(status);
     display.display();
 }

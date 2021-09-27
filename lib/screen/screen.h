@@ -9,7 +9,8 @@
 #define OLED_RESET      -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS  0x3C 
 
-void initOled();
+void initOled(const char radioType[]);
 void printToOled(char* status, float batVoltage, int16_t rssi, Packet theData);
+void printErrorOled(char* status);
 
 #endif

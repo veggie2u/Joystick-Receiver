@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-#define CWW_IS_LORA false
+#define CWW_IS_LORA true
 
 #define NETWORKID     100
 #define CWW_RADIO_FREQ    915.0

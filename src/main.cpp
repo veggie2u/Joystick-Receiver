@@ -45,15 +45,16 @@ char charBuf[100]; // for sprintf
 void setup() {
   Serial.begin(SERIAL_BAUD);
   initStatus();
+  initOled(RADIO_TYPE);
+  delay(2000);
 
-  // ensure start state
-  pinMode(LED, OUTPUT);     
+  sprintf(charBuf, "Feather %s Receiver", RADIO_TYPE);
+  debuglnD(charBuf);
+ 
   pinMode(RADIO_RST, OUTPUT);
 
-  debuglnD("Feather RFM69HCW Receiver");
-
   // Hard Reset the radio module
-  #if CWW_LORA_RADIO == true
+  #if CWW_IS_LORA == true
   digitalWrite(RADIO_RST, HIGH);
   delay(10);
   digitalWrite(RADIO_RST, LOW);
@@ -74,26 +75,32 @@ void setup() {
     debuglnD("RFM69 radio init failed");
     strcpy(status, "Radio failed");
     statusError();
-    while (1);
+    printErrorOled(status);
+    while (1) {
+      trafficOff();
+      delay(500);
+      trafficOn();
+      delay(500);
+    }
   }
-  debuglnD("RFM69 radio init OK!");
+  sprintf(charBuf, "%s radio init OK!", RADIO_TYPE);
+  debuglnD(charBuf);
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
   if (!radio.setFrequency(CWW_RADIO_FREQ)) {
     debuglnD("setFrequency failed");
     strcpy(status, "Freq failed");
+    printErrorOled(status);
     statusError();
   }
 
   radio.setTxPower(CWW_RADIO_POWER, CWW_IS_RFM69HCW);  // range from 14-20 for power, 2nd arg must be true for 69HCW
   
-  #if CWW_IS_LORA_RADIO == false
+  #if CWW_IS_LORA == false
   radio.setEncryptionKey(ENCRYPTION_KEY);
   #endif
 
-  sprintf(charBuf, "Listening on RFM69 readio @ %.1f Mhz", CWW_RADIO_FREQ);
+  sprintf(charBuf, "Listening on %s readio @ %.1f Mhz", RADIO_TYPE, CWW_RADIO_FREQ);
   debuglnD(charBuf);
-
-  initOled();
 }
 
 float getBatVoltage() {
