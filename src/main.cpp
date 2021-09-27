@@ -5,8 +5,6 @@
   Pings receiver to make sure it is still around.
 */
 
-#define DEBUGLEVEL 4
-
 #include <SPI.h>
 #include "main.h"
 #if CWW_IS_LORA == true

@@ -50,7 +50,6 @@ void copyJoystickData(Packet data) {
 
 // print the data we are sending
 void printJoystick(Packet data) {
-  debugD("Values... ");
   debugD("joy_x: ");
   debugD(data.joy_x);
   debugD(" joy_y: ");
