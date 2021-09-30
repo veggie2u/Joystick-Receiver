@@ -1,18 +1,35 @@
+#include "screen.h"
+
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_GFX.h>
+#if SCREEN_TYPE == 1107
+#include <Adafruit_SH110X.h>
+#else
 #include <Adafruit_SSD1306.h>
+#endif
 #include <Wire.h>
 
 #include <status.h>
 #include <controls.h>
-#include "screen.h"
 
+#if SCREEN_TYPE == 1107 
+Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
+#else
 Adafruit_SSD1306 display = Adafruit_SSD1306();
+#endif
+
+
 
 void initOled(const char radioType[]) {
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x32)
-    display.setTextSize(1);
+    #if SCREEN_TYPE == 1107
+    display.begin(SCREEN_ADDRESS, true);
+    display.setTextColor(SH110X_WHITE);
+    display.setRotation(1);
+    #else
+    display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);  // initialize with the I2C addr 0x3C (for the 128x32)
     display.setTextColor(WHITE);
+    #endif
+    display.setTextSize(1);
     display.display(); // start up picture
     delay(1000);
     display.clearDisplay();
